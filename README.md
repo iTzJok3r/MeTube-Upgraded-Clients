@@ -25,6 +25,12 @@ A companion bot to manage downloads and get completion alerts.
   3. Copy `.env.example` to `.env` and fill in your `BOT_TOKEN` and `ALLOWED_USER_IDS`.
   4. Run `npm start`.
 
+### 🐳 Run Bot with Docker
+If you use **Docker** or **CasaOS**:
+1. Copy `.env.example` to `.env`.
+2. Run `docker-compose up -d`.
+3. The bot will start and stay running in the background.
+
 ---
 
 ## 🔄 Staying Updated

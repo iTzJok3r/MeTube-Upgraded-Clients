@@ -1,0 +1,14 @@
+services:
+  metube-bot:
+    image: itzjok3r/metube-bot:latest
+    build:
+      context: ./metube-bot
+      dockerfile: Dockerfile
+    container_name: metube-bot
+    restart: unless-stopped
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - ALLOWED_USER_IDS=${ALLOWED_USER_IDS}
+      - METUBE_URL=http://your-metube-ip:8081/
+    volumes:
+      - ./metube-bot/data:/app/data
