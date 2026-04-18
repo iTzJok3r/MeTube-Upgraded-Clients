@@ -1,0 +1,24 @@
+# System Files
+.DS_Store
+Thumbs.db
+
+# Android
+.gradle/
+build/
+*/build/
+local.properties
+*.iml
+.idea/
+*.apk
+*.keystore
+!*.jks
+
+# Node.js
+metube-bot/node_modules/
+metube-bot/.env
+metube-bot/data/*.json
+!metube-bot/data/.gitkeep
+
+# Other
+.vscode/
+.history/
