@@ -40,4 +40,12 @@ These clients are compatible with the latest MeTube API. Even if you update your
 This project is an enhancement of the original **MeTube** by **alexta69**. 
 - Original Backend: [alexta69/metube](https://github.com/alexta69/metube)
 
+## 🛡️ Privacy & Security
+- **No Data Collection:** This app does not collect, store, or share any personal data. It does not track your downloads or browsing history.
+- **Direct Connection:** The Android App and Telegram Bot communicate **ONLY** with your own personal MeTube server. No third-party servers are involved.
+- **Open Source:** Full transparency. You can audit the source code to verify its safety.
+- **No Traces:** The app stores only its basic configuration settings on your device.
+
+---
+
 **Maintained by:** iTzJok3r
