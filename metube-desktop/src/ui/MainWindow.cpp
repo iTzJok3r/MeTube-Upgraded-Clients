@@ -127,6 +127,11 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
         }
     });
 
+    connect(m_manager, &DownloadManager::socketConnecting, this, [statusLabel]() {
+        statusLabel->setText("● Connecting...");
+        statusLabel->setStyleSheet("color: #f57c00; font-size: 12px; padding: 2px 8px;");
+    });
+
     // Initial load
     m_manager->refreshHistory();
 }

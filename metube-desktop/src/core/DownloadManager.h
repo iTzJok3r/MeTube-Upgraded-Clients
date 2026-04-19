@@ -65,6 +65,7 @@ signals:
     void downloadFinished(const QString &title);
     void addDownloadResult(bool success, const QString &message);
     void connectionStatusChanged(bool connected);
+    void socketConnecting(); // New proxy signal
     void subscriptionsChanged();
     void presetsChanged();
     void customDirsChanged();

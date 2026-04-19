@@ -42,6 +42,7 @@ void DownloadManager::updateServerUrl(const QString &url) {
         m_restService->fetchPresets();
         m_restService->fetchCookieStatus();
     });
+    connect(m_socketService, &MetubeSocketService::connecting, this, &DownloadManager::socketConnecting);
     connect(m_socketService, &MetubeSocketService::disconnected, this, [this]() {
         emit connectionStatusChanged(false);
     });
