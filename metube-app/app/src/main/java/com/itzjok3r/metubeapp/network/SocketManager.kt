@@ -9,7 +9,10 @@ import io.socket.client.IO
 import io.socket.client.Socket
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import org.json.JSONObject
 import java.net.URI
 
@@ -35,6 +38,9 @@ object SocketManager {
     /** The Socket.IO client instance; recreated when the server URL changes. */
     @Volatile
     private var socket: Socket? = null
+
+    /** StateFlow that tracks the active socket instance for reactive flow management. */
+    private val _socketState = MutableStateFlow<Socket?>(null)
 
     /** Tracks the URL the current socket is connected to. */
     @Volatile
@@ -88,6 +94,7 @@ object SocketManager {
 
                 connect()
             }
+            _socketState.value = socket
             currentUrl = normalizedUrl
             Log.i(TAG, "Initiating Socket.IO connection to $normalizedUrl")
         } catch (e: Exception) {
@@ -106,12 +113,18 @@ object SocketManager {
                 close()        // Release resources
             }
             socket = null
+            _socketState.value = null
             currentUrl = ""
             Log.i(TAG, "Socket.IO disconnected and cleaned up")
         } catch (e: Exception) {
             Log.e(TAG, "Error during Socket.IO disconnect", e)
         }
     }
+
+    /**
+     * Get the current Socket.IO session ID.
+     */
+    fun getSocketId(): String? = socket?.id()
 
     /**
      * Check whether the socket is currently connected.
@@ -141,74 +154,202 @@ object SocketManager {
     fun onCompleted(): Flow<DownloadItem> = createEventFlow("completed")
 
     /**
+     * Create a Flow that emits the configuration map for the "configuration" event.
+     */
+    fun onConfiguration(): Flow<Map<String, Any>> = _socketState.flatMapLatest { s ->
+        if (s == null) return@flatMapLatest emptyFlow()
+        
+        callbackFlow {
+            s.on("configuration") { args ->
+                try {
+                    val raw = args.firstOrNull()?.toString()
+                    if (raw != null) {
+                        val config = gson.fromJson<Map<String, Any>>(raw, object : com.google.gson.reflect.TypeToken<Map<String, Any>>() {}.type)
+                        trySend(config)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error parsing 'configuration' event", e)
+                }
+            }
+            awaitClose { s.off("configuration") }
+        }
+    }
+
+    /**
+     * Create a Flow that emits the list of custom directories for the "custom_dirs" event.
+     */
+    fun onCustomDirs(): Flow<List<String>> = _socketState.flatMapLatest { s ->
+        if (s == null) return@flatMapLatest emptyFlow()
+        
+        callbackFlow {
+            s.on("custom_dirs") { args ->
+                try {
+                    val raw = args.firstOrNull()?.toString()
+                    if (raw != null) {
+                        val listType = object : com.google.gson.reflect.TypeToken<List<String>>() {}.type
+                        val dirs = gson.fromJson<List<String>>(raw, listType)
+                        trySend(dirs)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error parsing 'custom_dirs' event", e)
+                }
+            }
+            awaitClose { s.off("custom_dirs") }
+        }
+    }
+
+    /**
+     * Create a Flow that emits [com.itzjok3r.metubeapp.model.SubscriptionItem]s for the "subscription_added" event.
+     */
+    fun onSubscriptionAdded(): Flow<com.itzjok3r.metubeapp.model.SubscriptionItem> = _socketState.flatMapLatest { s ->
+        if (s == null) return@flatMapLatest emptyFlow()
+        
+        callbackFlow {
+            s.on("subscription_added") { args ->
+                try {
+                    val raw = args.firstOrNull()?.toString()
+                    if (raw != null) {
+                        val sub = gson.fromJson(raw, com.itzjok3r.metubeapp.model.SubscriptionItem::class.java)
+                        trySend(sub)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error parsing 'subscription_added' event", e)
+                }
+            }
+            awaitClose { s.off("subscription_added") }
+        }
+    }
+
+    /**
+     * Create a Flow that emits the ID string for "subscription_removed" events.
+     */
+    fun onSubscriptionRemoved(): Flow<String> = _socketState.flatMapLatest { s ->
+        if (s == null) return@flatMapLatest emptyFlow()
+        
+        callbackFlow {
+            s.on("subscription_removed") { args ->
+                try {
+                    val id = parseIdFromArgs(args)
+                    if (id != null) {
+                        trySend(id)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error parsing 'subscription_removed' event", e)
+                }
+            }
+            awaitClose { s.off("subscription_removed") }
+        }
+    }
+
+    /**
+     * Create a Flow that emits the full list of subscriptions for the "subscriptions_all" event.
+     */
+    fun onSubscriptionsAll(): Flow<List<com.itzjok3r.metubeapp.model.SubscriptionItem>> = _socketState.flatMapLatest { s ->
+        if (s == null) return@flatMapLatest emptyFlow()
+        
+        callbackFlow {
+            s.on("subscriptions_all") { args ->
+                try {
+                    val raw = args.firstOrNull()?.toString() ?: return@on
+                    val listType = object : com.google.gson.reflect.TypeToken<List<com.itzjok3r.metubeapp.model.SubscriptionItem>>() {}.type
+                    val subs: List<com.itzjok3r.metubeapp.model.SubscriptionItem> = gson.fromJson(raw, listType)
+                    trySend(subs)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error parsing 'subscriptions_all' event", e)
+                }
+            }
+            awaitClose { s.off("subscriptions_all") }
+        }
+    }
+
+    /**
+     * Create a Flow that emits a [com.itzjok3r.metubeapp.model.SubscriptionItem] for the "subscription_updated" event.
+     */
+    fun onSubscriptionUpdated(): Flow<com.itzjok3r.metubeapp.model.SubscriptionItem> = _socketState.flatMapLatest { s ->
+        if (s == null) return@flatMapLatest emptyFlow()
+        
+        callbackFlow {
+            s.on("subscription_updated") { args ->
+                try {
+                    val raw = args.firstOrNull()?.toString()
+                    if (raw != null) {
+                        val sub = gson.fromJson(raw, com.itzjok3r.metubeapp.model.SubscriptionItem::class.java)
+                        trySend(sub)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error parsing 'subscription_updated' event", e)
+                }
+            }
+            awaitClose { s.off("subscription_updated") }
+        }
+    }
+
+    /**
      * Create a Flow that emits the ID string for "canceled" events.
      */
-    fun onCanceled(): Flow<String> = callbackFlow {
-        val s = socket ?: run {
-            close()
-            return@callbackFlow
-        }
-        s.on("canceled") { args ->
-            try {
-                val id = parseIdFromArgs(args)
-                if (id != null) {
-                    trySend(id)
+    fun onCanceled(): Flow<String> = _socketState.flatMapLatest { s ->
+        if (s == null) return@flatMapLatest emptyFlow()
+        
+        callbackFlow {
+            s.on("canceled") { args ->
+                try {
+                    val id = parseIdFromArgs(args)
+                    if (id != null) {
+                        trySend(id)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error parsing 'canceled' event", e)
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error parsing 'canceled' event", e)
             }
-        }
-        awaitClose {
-            s.off("canceled")
+            awaitClose {
+                s.off("canceled")
+            }
         }
     }
 
     /**
      * Create a Flow that emits the ID string for "cleared" events.
      */
-    fun onCleared(): Flow<String> = callbackFlow {
-        val s = socket ?: run {
-            close()
-            return@callbackFlow
-        }
-        s.on("cleared") { args ->
-            try {
-                val id = parseIdFromArgs(args)
-                if (id != null) {
-                    trySend(id)
+    fun onCleared(): Flow<String> = _socketState.flatMapLatest { s ->
+        if (s == null) return@flatMapLatest emptyFlow()
+        
+        callbackFlow {
+            s.on("cleared") { args ->
+                try {
+                    val id = parseIdFromArgs(args)
+                    if (id != null) {
+                        trySend(id)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error parsing 'cleared' event", e)
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error parsing 'cleared' event", e)
             }
-        }
-        awaitClose {
-            s.off("cleared")
+            awaitClose {
+                s.off("cleared")
+            }
         }
     }
 
     /**
      * Create a Flow that emits the full "all" event payload (sent on Socket.IO connect).
-     *
-     * This contains the complete current state of the download queue and is useful
-     * for reconciling state after a reconnection.
      */
-    fun onAll(): Flow<String> = callbackFlow {
-        val s = socket ?: run {
-            close()
-            return@callbackFlow
-        }
-        s.on("all") { args ->
-            try {
-                val raw = args.firstOrNull()?.toString()
-                if (raw != null) {
-                    trySend(raw)
+    fun onAll(): Flow<String> = _socketState.flatMapLatest { s ->
+        if (s == null) return@flatMapLatest emptyFlow()
+        
+        callbackFlow {
+            s.on("all") { args ->
+                try {
+                    val raw = args.firstOrNull()?.toString()
+                    if (raw != null) {
+                        trySend(raw)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error parsing 'all' event", e)
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error parsing 'all' event", e)
             }
-        }
-        awaitClose {
-            s.off("all")
+            awaitClose {
+                s.off("all")
+            }
         }
     }
 
@@ -223,27 +364,26 @@ object SocketManager {
      * This method defensively parses that string into a [DownloadItem], falling back
      * on empty/default fields if any property is missing or malformed.
      */
-    private fun createEventFlow(eventName: String): Flow<DownloadItem> = callbackFlow {
-        val s = socket ?: run {
-            close()
-            return@callbackFlow
-        }
+    private fun createEventFlow(eventName: String): Flow<DownloadItem> = _socketState.flatMapLatest { s ->
+        if (s == null) return@flatMapLatest emptyFlow()
 
-        s.on(eventName) { args ->
-            try {
-                val item = parseDownloadItem(args)
-                if (item != null) {
-                    trySend(item)
-                } else {
-                    Log.w(TAG, "Failed to parse '$eventName' event: ${args.firstOrNull()}")
+        callbackFlow {
+            s.on(eventName) { args ->
+                try {
+                    val item = parseDownloadItem(args)
+                    if (item != null) {
+                        trySend(item)
+                    } else {
+                        Log.w(TAG, "Failed to parse '$eventName' event: ${args.firstOrNull()}")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error parsing '$eventName' event", e)
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error parsing '$eventName' event", e)
             }
-        }
 
-        awaitClose {
-            s.off(eventName)
+            awaitClose {
+                s.off(eventName)
+            }
         }
     }
 
@@ -270,7 +410,7 @@ object SocketManager {
             val obj = jsonElement.asJsonObject
 
             DownloadItem(
-                id = obj.getStringOrDefault("_id", obj.getStringOrDefault("id", "")),
+                id = obj.getStringOrNull("_id") ?: obj.getStringOrNull("id") ?: "",
                 title = obj.getStringOrDefault("title", "Untitled"),
                 status = obj.getStringOrDefault("status", "pending"),
                 percent = obj.getFloatOrDefault("percent", 0f),
@@ -278,8 +418,23 @@ object SocketManager {
                 eta = obj.getStringOrNull("eta"),
                 filename = obj.getStringOrNull("filename"),
                 size = obj.getStringOrNull("size"),
-                error = obj.getStringOrNull("error") ?: obj.getStringOrNull("msg"),
-                url = obj.getStringOrNull("url")
+                error = obj.getStringOrNull("error") ?: obj.getStringOrNull("msg") ?: obj.getStringOrNull("reason"),
+                url = obj.getStringOrNull("url"),
+                downloadType = obj.getStringOrNull("download_type"),
+                quality = obj.getStringOrNull("quality"),
+                format = obj.getStringOrNull("format"),
+                codec = obj.getStringOrNull("codec"),
+                folder = obj.getStringOrNull("folder"),
+                customNamePrefix = obj.getStringOrNull("custom_name_prefix"),
+                msg = obj.getStringOrNull("msg"),
+                totalSize = obj.getLongOrNull("total_size"),
+                timestamp = obj.getLongOrNull("timestamp"),
+                playlistItemLimit = obj.getIntOrNull("playlist_item_limit"),
+                splitByChapters = obj.getBooleanOrNull("split_by_chapters"),
+                chapterTemplate = obj.getStringOrNull("chapter_template"),
+                subtitleLanguage = obj.getStringOrNull("subtitle_language"),
+                subtitleMode = obj.getStringOrNull("subtitle_mode"),
+                ytdlOptionsPresets = obj.getStringListOrNull("ytdl_options_presets")
             )
         } catch (e: Exception) {
             Log.e(TAG, "JSON parsing failed for DownloadItem", e)
@@ -322,6 +477,40 @@ object SocketManager {
             if (has(key) && !get(key).isJsonNull) get(key).asFloat else default
         } catch (e: Exception) {
             default
+        }
+    }
+
+    private fun JsonObject.getLongOrNull(key: String): Long? {
+        return try {
+            if (has(key) && !get(key).isJsonNull) get(key).asLong else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun JsonObject.getIntOrNull(key: String): Int? {
+        return try {
+            if (has(key) && !get(key).isJsonNull) get(key).asInt else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun JsonObject.getBooleanOrNull(key: String): Boolean? {
+        return try {
+            if (has(key) && !get(key).isJsonNull) get(key).asBoolean else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun JsonObject.getStringListOrNull(key: String): List<String>? {
+        return try {
+            if (has(key) && !get(key).isJsonNull && get(key).isJsonArray) {
+                get(key).asJsonArray.map { it.asString }
+            } else null
+        } catch (e: Exception) {
+            null
         }
     }
 }

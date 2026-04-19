@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Share
@@ -25,14 +26,20 @@ import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import com.itzjok3r.metubeapp.util.NetworkUtils
 import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
@@ -69,81 +76,126 @@ import com.itzjok3r.metubeapp.ads.BannerAd
  * @param serverUrl    Current server URL for file links.
  * @param onRetry      Callback to retry a failed download.
  */
+import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+
+@kotlin.OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(
     historyItems: List<DownloadItem>,
     serverUrl: String,
-    onRetry: (DownloadItem) -> Unit
+    networkPolicy: Int,
+    isLoading: Boolean,
+    onRemove: (DownloadItem) -> Unit,
+    onRetry: (DownloadItem) -> Unit,
+    onRefresh: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp)
-    ) {
-        // ── Header ──────────────────────────────────────────────────────
+    val pullRefreshState = rememberPullToRefreshState()
+    
+    if (pullRefreshState.isRefreshing) {
+        androidx.compose.runtime.LaunchedEffect(true) {
+            onRefresh()
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
         Column(
-            modifier = Modifier.padding(vertical = 16.dp)
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp)
+                .nestedScroll(pullRefreshState.nestedScrollConnection)
         ) {
-            Text(
-                text = "Download History",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Text(
-                text = "${historyItems.size} completed download(s)",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        // ── Content ─────────────────────────────────────────────────────
-        if (historyItems.isEmpty()) {
-            // Empty state
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
+            // ── Header ──────────────────────────────────────────────────────
+            Column(
+                modifier = Modifier.padding(vertical = 16.dp)
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = Icons.Default.History,
-                        contentDescription = "No history",
-                        modifier = Modifier.size(72.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "No completed downloads yet",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "Completed downloads will appear here",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                        textAlign = TextAlign.Center
-                    )
-                }
+                Text(
+                    text = "Download History",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    text = "${historyItems.size} completed download(s)",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-        } else {
-            // History items list
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(
-                    items = historyItems,
-                    key = { it.id }
-                ) { item ->
-                    HistoryItemCard(item = item, serverUrl = serverUrl, onRetry = onRetry)
+
+            // ── Content ─────────────────────────────────────────────────────
+            when {
+                // Loading state (only show if not refreshing via pull)
+                isLoading && !pullRefreshState.isRefreshing -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                    }
                 }
 
-                // Bottom spacing for navigation bar
-                item { Spacer(modifier = Modifier.height(16.dp)) }
+                historyItems.isEmpty() -> {
+                    // Empty state
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Default.History,
+                                contentDescription = "No history",
+                                modifier = Modifier.size(72.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "No completed downloads yet",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "Completed downloads will appear here",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                }
+
+                else -> {
+                    // History items list
+                    LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(
+                            items = historyItems,
+                            key = { it.id }
+                        ) { item ->
+                            HistoryItemCard(
+                                item = item, 
+                                serverUrl = serverUrl, 
+                                networkPolicy = networkPolicy,
+                                onRemove = onRemove, 
+                                onRetry = onRetry
+                            )
+                        }
+
+                        // Bottom spacing for navigation bar
+                        item { Spacer(modifier = Modifier.height(16.dp)) }
+                    }
+                }
             }
+
+            BannerAd(modifier = Modifier.padding(vertical = 8.dp))
         }
 
-        BannerAd(modifier = Modifier.padding(vertical = 8.dp))
+        PullToRefreshContainer(
+            modifier = Modifier.align(Alignment.TopCenter),
+            state = pullRefreshState
+        )
     }
 }
 
@@ -156,9 +208,73 @@ fun HistoryScreen(
 private fun HistoryItemCard(
     item: DownloadItem, 
     serverUrl: String,
+    networkPolicy: Int,
+    onRemove: (DownloadItem) -> Unit,
     onRetry: (DownloadItem) -> Unit
 ) {
     val context = LocalContext.current
+    
+    // State for network confirmation dialog
+    var showNetworkDialog by remember { mutableStateOf(false) }
+    var networkRisk by remember { mutableStateOf(NetworkUtils.NetworkRisk.SAFE) }
+
+    val onDownloadClick = {
+        val risk = NetworkUtils.getNetworkRisk(context)
+        networkRisk = risk
+        
+        when {
+            // Always Allow
+            networkPolicy == 0 -> enqueueDownload(context, item, serverUrl)
+            
+            // Offline
+            risk == NetworkUtils.NetworkRisk.OFFLINE -> {
+                Toast.makeText(context, "No internet connection", Toast.LENGTH_SHORT).show()
+            }
+            
+            // Wi-Fi Only
+            networkPolicy == 2 && risk != NetworkUtils.NetworkRisk.SAFE -> {
+                Toast.makeText(context, "Download blocked: Wi-Fi only policy enabled", Toast.LENGTH_LONG).show()
+            }
+            
+            // Warn on Metered
+            networkPolicy == 1 && risk != NetworkUtils.NetworkRisk.SAFE -> {
+                showNetworkDialog = true
+            }
+            
+            // Safe network
+            else -> enqueueDownload(context, item, serverUrl)
+        }
+    }
+
+    if (showNetworkDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showNetworkDialog = false },
+            title = { Text("Network Warning") },
+            text = {
+                val description = NetworkUtils.getNetworkDescription(context)
+                val message = when (networkRisk) {
+                    NetworkUtils.NetworkRisk.RESTRICTED -> 
+                        "Data Saver is enabled. Downloading this file may be restricted or incur costs."
+                    else -> 
+                        "You are currently on a metered network ($description). Downloading this file from the server to your device will consume your data plan."
+                }
+                Text(message)
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    showNetworkDialog = false
+                    enqueueDownload(context, item, serverUrl)
+                }) {
+                    Text("Download Now")
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showNetworkDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -183,8 +299,10 @@ private fun HistoryItemCard(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Status icon
-            val isError = item.status.lowercase() == "error"
+            // Status icon — remember to avoid recalculation on recomposition
+            val isError = androidx.compose.runtime.remember(item.status) {
+                item.status.lowercase() == "error"
+            }
             Icon(
                 imageVector = if (isError) Icons.Default.ErrorOutline else Icons.Default.CheckCircle,
                 contentDescription = if (isError) "Failed" else "Completed",
@@ -247,8 +365,11 @@ private fun HistoryItemCard(
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.width(4.dp))
+                        val formattedSize = androidx.compose.runtime.remember(item.size) {
+                            FormatUtils.formatFileSize(item.size ?: "")
+                        }
                         Text(
-                            text = FormatUtils.formatFileSize(item.size),
+                            text = formattedSize,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -275,7 +396,7 @@ private fun HistoryItemCard(
                         ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                         permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
                     } else {
-                        enqueueDownload(context, item, serverUrl)
+                        onDownloadClick()
                     }
                 }) {
                     Icon(
@@ -289,7 +410,9 @@ private fun HistoryItemCard(
                 IconButton(onClick = {
                     val isAudio = item.downloadType == "audio" || item.filename?.endsWith(".mp3", ignoreCase = true) == true
                     val route = if (isAudio) "audio_download/" else "download/"
-                    val downloadUrl = serverUrl + route + Uri.encode(item.filename)
+                    // Normalize serverUrl to ensure it ends with slash, then append route (which doesn't start with slash)
+                    val base = if (serverUrl.endsWith("/")) serverUrl else "$serverUrl/"
+                    val downloadUrl = base + route + Uri.encode(item.filename)
                     
                     val shareIntent = Intent().apply {
                         action = Intent.ACTION_SEND
@@ -304,6 +427,15 @@ private fun HistoryItemCard(
                         tint = MaterialTheme.colorScheme.secondary
                     )
                 }
+
+                // Delete Action
+                IconButton(onClick = { onRemove(item) }) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete from History",
+                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
+                    )
+                }
             }
         }
     }
@@ -313,7 +445,12 @@ private fun enqueueDownload(context: Context, item: DownloadItem, serverUrl: Str
     val isAudio = item.downloadType == "audio" || item.filename?.endsWith(".mp3", ignoreCase = true) == true
     val route = if (isAudio) "audio_download/" else "download/"
     val filename = item.filename ?: return
-    val downloadUrl = serverUrl + route + Uri.encode(filename)
+    
+    // Normalize serverUrl: ensure exactly one slash between host and route
+    val base = if (serverUrl.endsWith("/")) serverUrl else "$serverUrl/"
+    val downloadUrl = base + route + Uri.encode(filename)
+    
+    android.util.Log.d("HistoryScreen", "Enqueuing download: $downloadUrl")
     
     try {
         val request = DownloadManager.Request(Uri.parse(downloadUrl)).apply {

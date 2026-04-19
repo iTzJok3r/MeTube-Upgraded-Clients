@@ -9,7 +9,7 @@ require('dotenv').config();
 const { Telegraf } = require('telegraf');
 const metubeService = require('./services/metubeService');
 const socketService = require('./services/socketService');
-const store = require('./services/store');
+let serverConfig = {};
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -76,6 +76,9 @@ bot.command('start', (ctx) => {
     'Commands:',
     '/queue - show active downloads',
     '/done - show completed downloads',
+    '/subs - lists channel subscriptions',
+    '/check - triggers subscription check',
+    '/cookies - cookie management',
     '/help - show this message',
   ].join('\n');
   ctx.reply(msg);
@@ -108,22 +111,52 @@ bot.command('queue', async (ctx) => {
   }
 });
 
-bot.command('done', async (ctx) => {
+bot.command('subs', async (ctx) => {
   try {
-    const history = await metubeService.getHistory();
-    const items = history.done.slice(-15);
-    if (items.length === 0) {
-      return ctx.reply('\uD83D\uDCED No completed downloads.');
+    const subs = await metubeService.getSubscriptions();
+    if (subs.length === 0) {
+      return ctx.reply('📺 No subscriptions found.');
     }
-    const lines = items.map((item, i) => itemLine(item, i));
-    const total = history.done.length;
-    const showing = items.length < total
-      ? ' (showing last ' + items.length + ' of ' + total + ')'
-      : '';
-    await ctx.reply('\u2705 Completed Downloads' + showing + '\n\n' + lines.join('\n\n'));
+    const lines = subs.map((s, i) => {
+      const state = s.enabled ? '✅' : '⏸';
+      return `${i + 1}. ${state} ${s.name || s.url}\n   Interval: ${s.check_interval_minutes}m`;
+    });
+    ctx.reply('📺 Subscriptions (' + subs.length + ')\n\n' + lines.join('\n\n'));
   } catch (err) {
-    console.error('[cmd:done]', err.message);
-    ctx.reply('\u274C Failed to fetch history: ' + err.message);
+    ctx.reply('❌ Failed to fetch subscriptions: ' + err.message);
+  }
+});
+
+bot.command('check', async (ctx) => {
+  try {
+    await metubeService.checkSubscriptions();
+    ctx.reply('🔄 Subscription check triggered.');
+  } catch (err) {
+    ctx.reply('❌ Failed to trigger check: ' + err.message);
+  }
+});
+
+bot.command('cookies', async (ctx) => {
+  try {
+    const status = await metubeService.getCookieStatus();
+    const state = status.has_cookies ? '✅ Cookies Present' : '❌ No Cookies';
+    ctx.reply(`🍪 Cookie Status: ${state}`, {
+      reply_markup: {
+        inline_keyboard: status.has_cookies ? [[{ text: '🗑 Delete Cookies', callback_data: 'delete_cookies' }]] : []
+      }
+    });
+  } catch (err) {
+    ctx.reply('❌ Failed to fetch cookie status: ' + err.message);
+  }
+});
+
+bot.action('delete_cookies', async (ctx) => {
+  try {
+    await metubeService.deleteCookies();
+    await ctx.answerCbQuery('Cookies deleted.');
+    await ctx.editMessageText('🍪 Cookies have been removed.');
+  } catch (err) {
+    await ctx.answerCbQuery('Error: ' + err.message);
   }
 });
 
@@ -141,11 +174,17 @@ bot.on('text', async (ctx) => {
 
   for (const url of urls) {
     try {
-      await ctx.reply('\u23F3 Adding: ' + url);
-      const result = await metubeService.addDownload(url);
+      await ctx.reply('⏳ Adding: ' + url);
+      // Support basic flags if present in text
+      const isAudio = text.toLowerCase().includes('audio') || text.toLowerCase().includes('mp3');
+      const result = await metubeService.addDownload({
+        url: url,
+        downloadType: isAudio ? 'audio' : 'video',
+        quality: 'best'
+      });
 
       if (result && result.status === 'error') {
-        await ctx.reply('\u274C Server error: ' + (result.msg || 'unknown'));
+        await ctx.reply('❌ Server error: ' + (result.msg || 'unknown'));
         continue;
       }
 
@@ -171,6 +210,15 @@ bot.on('text', async (ctx) => {
 });
 
 // ─── Socket.IO real-time notifications ───────────────────────────────────────
+
+socketService.on('configuration', (data) => {
+  try {
+    serverConfig = typeof data === 'string' ? JSON.parse(data) : data;
+    console.log('[bot] Server configuration updated');
+  } catch (err) {
+    console.error('[socket:configuration] error:', err.message);
+  }
+});
 
 socketService.on('completed', async (data) => {
   try {
@@ -199,15 +247,11 @@ socketService.on('completed', async (data) => {
         + '\uD83D\uDCC4 ' + title + '\n'
         + '\u26A0\uFE0F ' + (errorMsg || 'Unknown error');
     } else {
-      const sizeInfo = size ? '\n\uD83D\uDCE6 ' + size : '';
-      const filename = data.filename || '';
-      let dlLink = '';
-      if (filename) {
-        const base = metubeService.getBaseUrl();
-        dlLink = '\n\uD83D\uDD17 ' + base + '/download/' + encodeURIComponent(filename);
-      }
-      message = '\u2705 Download Complete\n\n'
-        + '\uD83D\uDCC4 ' + title
+      const sizeInfo = size ? '\n📦 ' + size : '';
+      const dlLink = '\n🔗 ' + metubeService.buildDownloadLink(data, serverConfig);
+      
+      message = '✅ Download Complete\n\n'
+        + '📄 ' + title
         + sizeInfo + dlLink;
     }
 

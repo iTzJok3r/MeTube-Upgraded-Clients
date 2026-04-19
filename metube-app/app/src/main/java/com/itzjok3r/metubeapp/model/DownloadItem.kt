@@ -31,5 +31,19 @@ data class DownloadItem(
     val downloadType: String? = null,
     val quality: String? = null,
     val format: String? = null,
-    val codec: String? = null
+    val codec: String? = null,
+    val folder: String? = null,
+    @com.google.gson.annotations.SerializedName("custom_name_prefix") val customNamePrefix: String? = null,
+    val msg: String? = null,
+    @com.google.gson.annotations.SerializedName("total_size") val totalSize: Long? = null,
+    val timestamp: Long? = null,
+    @com.google.gson.annotations.SerializedName("playlist_item_limit") val playlistItemLimit: Int? = null,
+    @com.google.gson.annotations.SerializedName("split_by_chapters") val splitByChapters: Boolean? = null,
+    @com.google.gson.annotations.SerializedName("chapter_template") val chapterTemplate: String? = null,
+    @com.google.gson.annotations.SerializedName("subtitle_language") val subtitleLanguage: String? = null,
+    @com.google.gson.annotations.SerializedName("subtitle_mode") val subtitleMode: String? = null,
+    @com.google.gson.annotations.SerializedName("ytdl_options_presets") val ytdlOptionsPresets: List<String>? = null,
+    @com.google.gson.annotations.SerializedName("ytdl_options_overrides") val ytdlOptionsOverrides: Map<String, Any>? = null,
+    @com.google.gson.annotations.SerializedName("chapter_files") val chapterFiles: List<Map<String, Any>>? = null,
+    @com.google.gson.annotations.SerializedName("subtitle_files") val subtitleFiles: List<Map<String, Any>>? = null
 )

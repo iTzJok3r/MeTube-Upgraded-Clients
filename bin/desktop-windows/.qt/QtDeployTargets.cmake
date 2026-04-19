@@ -1,0 +1,3 @@
+set(__QT_DEPLOY_TARGET_MeTubeDesktop_FILE C:/Users/m94sb/Desktop/metube-master/metube-desktop/build/MeTubeDesktop.exe)
+set(__QT_DEPLOY_TARGET_MeTubeDesktop_TYPE EXECUTABLE)
+set(__QT_DEPLOY_TARGET_MeTubeDesktop_RUNTIME_DLLS C:/Users/m94sb/Desktop/metube-master/metube-desktop/6.7.2/mingw_64/bin/Qt6Widgets.dll;C:/Users/m94sb/Desktop/metube-master/metube-desktop/6.7.2/mingw_64/bin/Qt6WebSockets.dll;C:/Users/m94sb/Desktop/metube-master/metube-desktop/6.7.2/mingw_64/bin/Qt6Gui.dll;C:/Users/m94sb/Desktop/metube-master/metube-desktop/6.7.2/mingw_64/bin/Qt6Network.dll;C:/Users/m94sb/Desktop/metube-master/metube-desktop/6.7.2/mingw_64/bin/Qt6Core.dll)

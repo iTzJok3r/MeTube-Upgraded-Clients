@@ -1,0 +1,109 @@
+
+name: libiconv-1.14
+url: http://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.14.tar.gz
+version: 1.14
+
+name: zlib-1.2.7
+url: http://zlib.net/zlib-1.2.7.tar.bz2
+version: 1.2.7
+
+name: gmp-5.1.0
+url: ftp://ftp.gmplib.org/pub/gmp-5.1.0/gmp-5.1.0.tar.bz2
+version: 5.1.0
+
+name: mpfr-3.1.1
+url: ftp://ftp.gnu.org/gnu/mpfr/mpfr-3.1.1.tar.bz2
+version: 3.1.1
+
+name: mpc-1.0.1
+url: http://www.multiprecision.org/mpc/download/mpc-1.0.1.tar.gz
+version: 1.0.1
+
+name: ppl-1.0
+url: http://bugseng.com/products/ppl/download/ftp/releases/1.0/ppl-1.0.tar.bz2
+version: 1.0
+
+name: cloog-0.18.0
+url: http://www.bastoul.net/cloog/pages/download/count.php3?url=./cloog-0.18.0.tar.gz
+version: 0.18.0
+
+name: mingw-w64-headers
+url: http://mingw-w64.svn.sourceforge.net/svnroot/mingw-w64/trunk/mingw-w64-headers
+revision: 5540
+
+name: mingw-w64-crt
+url: http://mingw-w64.svn.sourceforge.net/svnroot/mingw-w64/trunk/mingw-w64-crt
+revision: 5540
+
+name: winpthreads
+url: http://mingw-w64.svn.sourceforge.net/svnroot/mingw-w64/experimental/winpthreads
+revision: 5539
+
+name: binutils-2.23.1
+url: ftp://mirrors.kernel.org/sources.redhat.com/binutils/releases/binutils-2.23.1.tar.bz2
+version: 2.23.1
+
+name: gcc-4.7.2
+url: ftp://ftp.fu-berlin.de/unix/languages/gcc/releases/gcc-4.7.2/gcc-4.7.2.tar.bz2
+version: 4.7.2
+
+name: libmangle
+url: http://mingw-w64.svn.sourceforge.net/svnroot/mingw-w64/trunk/mingw-w64-libraries/libmangle
+revision: 5540
+
+name: gendef
+url: http://mingw-w64.svn.sourceforge.net/svnroot/mingw-w64/trunk/mingw-w64-tools/gendef
+revision: 5540
+
+name: genidl
+url: http://mingw-w64.svn.sourceforge.net/svnroot/mingw-w64/trunk/mingw-w64-tools/genidl
+revision: 5540
+
+name: genpeimg
+url: http://mingw-w64.svn.sourceforge.net/svnroot/mingw-w64/trunk/mingw-w64-tools/genpeimg
+revision: 5540
+
+name: widl
+url: http://mingw-w64.svn.sourceforge.net/svnroot/mingw-w64/trunk/mingw-w64-tools/widl
+revision: 5540
+
+name: mingw-libgnurx-2.5.1
+url: https://sourceforge.net/projects/mingw/files/Other/UserContributed/regex/mingw-regex-2.5.1/mingw-libgnurx-2.5.1-src.tar.gz
+version: 2.5.1
+
+name: bzip2-1.0.6
+url: http://www.bzip.org/1.0.6/bzip2-1.0.6.tar.gz
+version: 2
+
+name: libffi-3.0.11
+url: ftp://sourceware.org/pub/libffi/libffi-3.0.11.tar.gz
+version: 3.0.11
+
+name: expat-2.1.0
+url: http://sourceforge.net/projects/expat/files/expat/2.1.0/expat-2.1.0.tar.gz
+version: 2.1.0
+
+name: sqlite-autoconf-3071502
+url: http://www.sqlite.org/sqlite-autoconf-3071502.tar.gz
+version: 3071502
+
+name: ncurses-5.9
+url: ftp://invisible-island.net/ncurses/ncurses-5.9.tar.gz
+version: 5.9
+
+name: readline-6.2
+url: ftp://ftp.gnu.org/gnu/readline/readline-6.2.tar.gz
+version: 6.2
+
+name: Python-2.7.3
+url: http://www.python.org/ftp/python/2.7.3/Python-2.7.3.tar.bz2
+version: 2.7.3
+
+name: gdb-7.5.1
+url: ftp://ftp.gnu.org/gnu/gdb/gdb-7.5.1.tar.bz2
+version: 7.5.1
+
+name: make
+url: :pserver:anonymous:@cvs.sv.gnu.org:/sources/make
+revision: 09/21/2012
+

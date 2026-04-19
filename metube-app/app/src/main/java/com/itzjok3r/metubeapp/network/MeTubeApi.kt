@@ -40,4 +40,61 @@ interface MeTubeApi {
      */
     @GET("history")
     suspend fun getHistory(): Response<HistoryResponse>
+
+    @POST("delete")
+    suspend fun deleteDownload(@Body request: com.itzjok3r.metubeapp.model.DeleteRequest): Response<Map<String, Any>>
+
+    /**
+     * Fetch available ytdl-dlp presets.
+     */
+    @GET("presets")
+    suspend fun getPresets(): Response<Map<String, List<String>>>
+
+    /**
+     * Start pending downloads.
+     */
+    @POST("start")
+    suspend fun startDownloads(@Body request: com.itzjok3r.metubeapp.model.BulkIdRequest): Response<Map<String, Any>>
+
+    /**
+     * Fetch all subscriptions.
+     */
+    @GET("subscriptions")
+    suspend fun getSubscriptions(): Response<List<com.itzjok3r.metubeapp.model.SubscriptionItem>>
+
+    /**
+     * Delete subscriptions.
+     */
+    @POST("subscriptions/delete")
+    suspend fun deleteSubscriptions(@Body request: com.itzjok3r.metubeapp.model.BulkIdRequest): Response<Map<String, Any>>
+
+    /**
+     * Trigger manual check for subscriptions.
+     */
+    @POST("subscriptions/check")
+    suspend fun checkSubscriptions(@Body request: com.itzjok3r.metubeapp.model.BulkIdRequest): Response<Map<String, Any>>
+
+    /**
+     * Add a new subscription.
+     */
+    @POST("subscribe")
+    suspend fun addSubscription(@Body request: AddRequest): Response<Map<String, Any>>
+
+    /**
+     * Update an existing subscription.
+     */
+    @POST("subscriptions/update")
+    suspend fun updateSubscription(@Body request: com.itzjok3r.metubeapp.model.SubscriptionItem): Response<Map<String, Any>>
+
+    /**
+     * Fetch cookie status.
+     */
+    @GET("cookie-status")
+    suspend fun getCookieStatus(): Response<Map<String, Any>>
+
+    /**
+     * Delete server-side cookies.
+     */
+    @POST("delete-cookies")
+    suspend fun deleteCookies(): Response<Map<String, Any>>
 }

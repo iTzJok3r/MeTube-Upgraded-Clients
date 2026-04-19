@@ -8,14 +8,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CellTower
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.HighQuality
+import androidx.compose.material.icons.filled.NetworkCheck
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -99,7 +103,11 @@ fun SettingsScreen(
     onSaveType: (String) -> Unit,
     onSaveFormat: (String) -> Unit,
     onSaveCodec: (String) -> Unit,
-    onToggleDarkMode: (Boolean) -> Unit
+    onToggleDarkMode: (Boolean) -> Unit,
+    allowBackground: Boolean,
+    onToggleBackground: (Boolean) -> Unit,
+    networkPolicy: Int,
+    onSaveNetworkPolicy: (Int) -> Unit
 ) {
     // Local editable state for the server URL field
     var editableUrl by remember { mutableStateOf(serverUrl) }
@@ -120,6 +128,14 @@ fun SettingsScreen(
     var codecExpanded by remember { mutableStateOf(false) }
     var selectedCodec by remember { mutableStateOf(defaultCodec) }
     val codecLabel = CODEC_OPTIONS.find { it.first == selectedCodec }?.second ?: "Auto Codec"
+
+    var networkExpanded by remember { mutableStateOf(false) }
+    val networkOptions = listOf(
+        0 to "Always Allow",
+        1 to "Warn on Metered",
+        2 to "Unmetered Only (Wi-Fi/Ethernet)"
+    )
+    val networkLabel = networkOptions.find { it.first == networkPolicy }?.second ?: "Warn on Metered"
 
     Column(
         modifier = Modifier
@@ -430,19 +446,19 @@ fun SettingsScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Default.DarkMode,
-                            contentDescription = "Theme",
+                            contentDescription = "Dark Mode",
                             tint = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
-                                text = "Dark Mode",
+                                text = "Dark Theme",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = if (isDarkMode) "Dark theme active" else "Light theme active",
+                                text = if (isDarkMode) "Enabled" else "Disabled",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -451,12 +467,166 @@ fun SettingsScreen(
 
                     Switch(
                         checked = isDarkMode,
-                        onCheckedChange = onToggleDarkMode,
+                        onCheckedChange = { onToggleDarkMode(it) },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = MaterialTheme.colorScheme.primary,
                             checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
                         )
                     )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // ── Network & Downloads Section ──────────────────────────────────
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            ),
+            shape = MaterialTheme.shapes.large
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Filled.NetworkCheck,
+                        contentDescription = "Network",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "Network & Downloads",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                ExposedDropdownMenuBox(
+                    expanded = networkExpanded,
+                    onExpandedChange = { networkExpanded = !networkExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = networkLabel,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Device Download Policy") },
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = networkExpanded)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                        ),
+                        shape = MaterialTheme.shapes.medium
+                    )
+
+                    ExposedDropdownMenu(
+                        expanded = networkExpanded,
+                        onDismissRequest = { networkExpanded = false }
+                    ) {
+                        networkOptions.forEach { (value, label) ->
+                            DropdownMenuItem(
+                                text = { Text(label) },
+                                onClick = {
+                                    networkExpanded = false
+                                    onSaveNetworkPolicy(value)
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Controls whether the app warns you before downloading files from the server to your device on metered or cellular networks.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // ── Background Behavior Section ──────────────────────────────────
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            ),
+            shape = MaterialTheme.shapes.large
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Icon(
+                            imageVector = Icons.Filled.CellTower,
+                            contentDescription = "Background",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "Run in Background",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Keep socket connection active",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Switch(
+                        checked = allowBackground,
+                        onCheckedChange = onToggleBackground,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.primary,
+                            checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Warning Box
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)
+                    ),
+                    shape = MaterialTheme.shapes.small
+                ) {
+                    Row(
+                        modifier = Modifier.padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Warning, 
+                            contentDescription = "Warning",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Warning: Enabling this will significantly increase battery consumption by preventing the device from sleeping.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
         }
@@ -471,14 +641,14 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(
-            text = "MeTube Client v1.0.0",
+            text = "MeTube Client v1.0.4",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
             modifier = Modifier.fillMaxWidth()
         )
 
         Text(
-            text = "Settings are stored in-memory and will reset on app restart.",
+            text = "Settings are persisted on your device and will survive app restarts.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
             modifier = Modifier

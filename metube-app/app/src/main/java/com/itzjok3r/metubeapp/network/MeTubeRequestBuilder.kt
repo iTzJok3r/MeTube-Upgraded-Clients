@@ -32,7 +32,16 @@ object MeTubeRequestBuilder {
         quality: String?,
         format: String?,
         codec: String?,
-        downloadType: String?
+        downloadType: String?,
+        preset: String? = null,
+        folder: String? = null,
+        autoStart: Boolean = true,
+        splitByChapters: Boolean = false,
+        chapterTemplate: String? = null,
+        subtitleLanguage: String? = "en",
+        subtitleMode: String? = "prefer_manual",
+        ytdlOptionsOverrides: Map<String, Any>? = null,
+        customNamePrefix: String? = null
     ): AddRequest {
         val finalFormat = if (format.isNullOrBlank() || format.lowercase() == "any") "any" else format.lowercase()
         val finalCodec = if (codec.isNullOrBlank() || codec.lowercase() == "auto") "auto" else codec.lowercase()
@@ -51,7 +60,16 @@ object MeTubeRequestBuilder {
             quality = actualQuality,
             format = actualFormat,
             codec = finalCodec,
-            download_type = actualDownloadType
+            download_type = actualDownloadType,
+            folder = folder,
+            custom_name_prefix = customNamePrefix,
+            ytdl_options_presets = if (!preset.isNullOrBlank()) listOf(preset) else null,
+            auto_start = autoStart,
+            split_by_chapters = splitByChapters,
+            chapter_template = chapterTemplate,
+            subtitle_language = subtitleLanguage,
+            subtitle_mode = subtitleMode,
+            ytdl_options_overrides = ytdlOptionsOverrides
         )
     }
 }

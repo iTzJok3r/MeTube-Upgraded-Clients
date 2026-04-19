@@ -59,6 +59,7 @@ class SocketService extends EventEmitter {
     this._socket.on('completed', (data) => this._safeEmit('completed', data));
     this._socket.on('canceled', (data) => this._safeEmit('canceled', data));
     this._socket.on('cleared', (data) => this._safeEmit('cleared', data));
+    this._socket.on('configuration', (data) => this._safeEmit('configuration', data));
 
     // "all" event — full state resync after reconnect
     this._socket.on('all', (data) => this._safeEmit('all', data));
