@@ -23,6 +23,7 @@ public:
 signals:
     void connected();
     void disconnected();
+    void connecting(); // New signal for UI feedback
     void downloadAdded(const QJsonObject &item);
     void downloadUpdated(const QJsonObject &item);
     void downloadCompleted(const QJsonObject &item);

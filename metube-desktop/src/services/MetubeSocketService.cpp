@@ -58,6 +58,7 @@ void MetubeSocketService::connectToServer() {
     pollUrl += "socket.io/?EIO=4&transport=polling&t=" + QString::number(QDateTime::currentMSecsSinceEpoch());
     
     qDebug() << "SocketService: Starting handshake at" << pollUrl;
+    emit connecting();
     
     QNetworkRequest request = createRequest(pollUrl);
     QNetworkReply *reply = m_networkManager->get(request);
@@ -135,8 +136,6 @@ void MetubeSocketService::onLongPollFinished() {
         QString data = QString::fromUtf8(reply->readAll());
         if (!data.isEmpty()) {
             // EIO v4 polling can contain multiple packets
-            // Format: <packet1><packet2>...
-            // Each packet starts with a type digit
             processEngineIOPacket(data);
         }
         // Immediately start next poll for "real-time" responsiveness

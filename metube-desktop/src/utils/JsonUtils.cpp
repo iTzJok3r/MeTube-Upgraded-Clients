@@ -36,6 +36,12 @@ HistoryPayload parseHistoryPayload(const QJsonObject& obj) {
         for (const auto& val : arr) {
             if (val.isObject()) {
                 list.append(parseDownloadItem(val.toObject()));
+            } else if (val.isArray()) {
+                // Handle [key, info] pair format from backend's 'all' event
+                QJsonArray pair = val.toArray();
+                if (pair.size() >= 2 && pair.at(1).isObject()) {
+                    list.append(parseDownloadItem(pair.at(1).toObject()));
+                }
             }
         }
         return list;
