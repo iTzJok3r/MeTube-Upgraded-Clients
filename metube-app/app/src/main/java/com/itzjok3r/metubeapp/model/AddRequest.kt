@@ -22,5 +22,12 @@ data class AddRequest(
     val codec: String? = null,
     val download_type: String? = null,
     val folder: String? = null,
-    val custom_name_prefix: String? = null
+    val custom_name_prefix: String? = null,
+    val ytdl_options_presets: List<String>? = null,
+    val auto_start: Boolean = true,
+    val split_by_chapters: Boolean? = null,
+    val chapter_template: String? = null,
+    val subtitle_language: String? = null,
+    val subtitle_mode: String? = null,
+    val ytdl_options_overrides: Map<String, Any>? = null
 )

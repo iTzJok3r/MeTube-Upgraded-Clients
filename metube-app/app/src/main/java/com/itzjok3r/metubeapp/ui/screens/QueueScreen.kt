@@ -18,9 +18,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Card
@@ -61,120 +63,147 @@ import com.itzjok3r.metubeapp.ads.BannerAd
  * @param connectionStatus Current Socket.IO connection status string.
  * @param onRetry          Callback to retry loading if initial fetch failed.
  */
+import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+
+@kotlin.OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun QueueScreen(
     queueItems: List<DownloadItem>,
     isLoading: Boolean,
     connectionStatus: String,
+    onRemove: (com.itzjok3r.metubeapp.model.DownloadItem) -> Unit,
+    onStart: (String) -> Unit,
     onRetry: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp)
-    ) {
-        // ── Header with connection status ───────────────────────────────
-        Row(
+    val pullRefreshState = rememberPullToRefreshState()
+    
+    if (pullRefreshState.isRefreshing) {
+        androidx.compose.runtime.LaunchedEffect(true) {
+            onRetry()
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxSize()
+                .padding(horizontal = 16.dp)
+                .nestedScroll(pullRefreshState.nestedScrollConnection)
         ) {
-            Column {
-                Text(
-                    text = "Download Queue",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Text(
-                    text = "${queueItems.size} item(s) • $connectionStatus",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            // ── Header with connection status ───────────────────────────────
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "Download Queue",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Text(
+                        text = "${queueItems.size} item(s) • $connectionStatus",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                IconButton(onClick = onRetry) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Refresh",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
 
-            IconButton(onClick = onRetry) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = "Refresh",
-                    tint = MaterialTheme.colorScheme.primary
-                )
+            // ── Content ─────────────────────────────────────────────────────
+            when {
+                // Loading state (only show if not refreshing via pull)
+                isLoading && !pullRefreshState.isRefreshing -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator(
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Loading queue...",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                // Empty state
+                queueItems.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Default.CloudDownload,
+                                contentDescription = "No downloads",
+                                modifier = Modifier.size(72.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "No active downloads",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "Add a URL from the Home tab to get started",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                }
+
+                // Queue items list
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(
+                            items = queueItems,
+                            key = { it.id }
+                        ) { item ->
+                            QueueItemCard(
+                                item = item, 
+                                onRemove = { onRemove(it) },
+                                onStart = onStart
+                            )
+                        }
+
+                        // Bottom spacing
+                        item { Spacer(modifier = Modifier.height(16.dp)) }
+                    }
+                }
             }
+
+            BannerAd(modifier = Modifier.padding(vertical = 8.dp))
         }
 
-        // ── Content ─────────────────────────────────────────────────────
-        when {
-            // Loading state
-            isLoading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "Loading queue...",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-
-            // Empty state
-            queueItems.isEmpty() -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Default.CloudDownload,
-                            contentDescription = "No downloads",
-                            modifier = Modifier.size(72.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "No active downloads",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = "Add a URL from the Home tab to get started",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-            }
-
-            // Queue items list
-            else -> {
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(
-                        items = queueItems,
-                        key = { it.id }
-                    ) { item ->
-                        QueueItemCard(item = item)
-                    }
-
-                    // Bottom spacing
-                    item { Spacer(modifier = Modifier.height(16.dp)) }
-                }
-            }
-        }
-
-        BannerAd(modifier = Modifier.padding(vertical = 8.dp))
+        PullToRefreshContainer(
+            modifier = Modifier.align(Alignment.TopCenter),
+            state = pullRefreshState
+        )
     }
 }
 
@@ -188,7 +217,11 @@ fun QueueScreen(
  * - Error message if the download failed
  */
 @Composable
-private fun QueueItemCard(item: DownloadItem) {
+private fun QueueItemCard(
+    item: DownloadItem,
+    onRemove: (DownloadItem) -> Unit,
+    onStart: (String) -> Unit
+) {
     // Animate the progress bar value for smooth transitions
     val animatedProgress by animateFloatAsState(
         targetValue = (item.percent / 100f).coerceIn(0f, 1f),
@@ -196,12 +229,14 @@ private fun QueueItemCard(item: DownloadItem) {
         label = "progress"
     )
 
-    // Determine status color and icon
-    val (statusColor, statusIcon) = when (item.status.lowercase()) {
-        "downloading" -> StatusDownloading to Icons.Default.CloudDownload
-        "finished" -> StatusCompleted to Icons.Default.CloudDownload
-        "error" -> StatusError to Icons.Default.ErrorOutline
-        else -> StatusPending to Icons.Default.HourglassTop
+    // Determine status color and icon — remember to avoid recalculation on every progress tick
+    val (statusColor, statusIcon) = androidx.compose.runtime.remember(item.status) {
+        when (item.status.lowercase()) {
+            "downloading" -> StatusDownloading to Icons.Default.CloudDownload
+            "finished" -> StatusCompleted to Icons.Default.CloudDownload
+            "error" -> StatusError to Icons.Default.ErrorOutline
+            else -> StatusPending to Icons.Default.HourglassTop
+        }
     }
 
     Card(
@@ -244,8 +279,29 @@ private fun QueueItemCard(item: DownloadItem) {
                     )
                 }
 
+                // Delete Button
+                IconButton(onClick = { onRemove(item) }) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Cancel Download",
+                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
+                    )
+                }
+
+                // Start Button (for pending items)
+                if (item.status.lowercase() == "pending") {
+                    IconButton(onClick = { onStart(item.id) }) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = "Start Download",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
                 // Percentage display
                 if (item.status.lowercase() == "downloading") {
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "${item.percent.toInt()}%",
                         style = MaterialTheme.typography.titleMedium,
@@ -285,8 +341,11 @@ private fun QueueItemCard(item: DownloadItem) {
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Spacer(modifier = Modifier.width(4.dp))
+                            val formattedSpeed = androidx.compose.runtime.remember(item.speed) {
+                                FormatUtils.formatSpeed(item.speed ?: "")
+                            }
                             Text(
-                                text = FormatUtils.formatSpeed(item.speed),
+                                text = formattedSpeed,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

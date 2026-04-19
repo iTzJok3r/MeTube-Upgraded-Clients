@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Subscriptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -41,9 +42,15 @@ import com.itzjok3r.metubeapp.ui.screens.HistoryScreen
 import com.itzjok3r.metubeapp.ui.screens.HomeScreen
 import com.itzjok3r.metubeapp.ui.screens.QueueScreen
 import com.itzjok3r.metubeapp.ui.screens.SettingsScreen
+import com.itzjok3r.metubeapp.ui.screens.SubscriptionsScreen
 import com.itzjok3r.metubeapp.ui.theme.MeTubeClientTheme
 import com.itzjok3r.metubeapp.viewmodel.MeTubeViewModel
 import com.itzjok3r.metubeapp.ads.AdManager
+import androidx.compose.runtime.DisposableEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
  * Navigation route identifiers for the four main screens.
@@ -52,6 +59,7 @@ object Routes {
     const val HOME = "home"
     const val QUEUE = "queue"
     const val HISTORY = "history"
+    const val SUBSCRIPTIONS = "subscriptions"
     const val SETTINGS = "settings"
 }
 
@@ -73,6 +81,7 @@ private val bottomNavItems = listOf(
     BottomNavItem(Routes.HOME, "Home", Icons.Default.Add),
     BottomNavItem(Routes.QUEUE, "Queue", Icons.Default.Download),
     BottomNavItem(Routes.HISTORY, "History", Icons.Default.History),
+    BottomNavItem(Routes.SUBSCRIPTIONS, "Subs", Icons.Default.Subscriptions),
     BottomNavItem(Routes.SETTINGS, "Settings", Icons.Default.Settings)
 )
 
@@ -164,6 +173,7 @@ class MainActivity : ComponentActivity() {
  * @param viewModel The shared MeTubeViewModel instance.
  * @param sharedUrl Optional pre-filled URL from a share intent.
  */
+@kotlin.OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun MeTubeApp(
     viewModel: MeTubeViewModel,
@@ -173,17 +183,39 @@ fun MeTubeApp(
     val snackbarHostState = remember { SnackbarHostState() }
 
     // ── Collect ViewModel state ─────────────────────────────────────────
-    val queue by viewModel.queue.collectAsState()
-    val history by viewModel.history.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val isSubmitting by viewModel.isSubmitting.collectAsState()
-    val connectionStatus by viewModel.connectionStatus.collectAsState()
-    val serverUrl by viewModel.serverUrl.collectAsState()
-    val defaultQuality by viewModel.defaultQuality.collectAsState()
-    val defaultType by viewModel.defaultType.collectAsState()
-    val defaultFormat by viewModel.defaultFormat.collectAsState()
-    val defaultCodec by viewModel.defaultCodec.collectAsState()
-    val isDarkMode by viewModel.isDarkMode.collectAsState()
+    val queue by viewModel.queue.collectAsStateWithLifecycle()
+    val history by viewModel.history.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val isSubmitting by viewModel.isSubmitting.collectAsStateWithLifecycle()
+    val connectionStatus by viewModel.connectionStatus.collectAsStateWithLifecycle()
+    val serverUrl by viewModel.serverUrl.collectAsStateWithLifecycle()
+    val defaultQuality by viewModel.defaultQuality.collectAsStateWithLifecycle()
+    val defaultType by viewModel.defaultType.collectAsStateWithLifecycle()
+    val defaultFormat by viewModel.defaultFormat.collectAsStateWithLifecycle()
+    val defaultCodec by viewModel.defaultCodec.collectAsStateWithLifecycle()
+    val isDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
+    val allowBackground by viewModel.allowBackgroundConnection.collectAsStateWithLifecycle()
+    val subscriptions by viewModel.subscriptions.collectAsStateWithLifecycle()
+    val presets by viewModel.presets.collectAsStateWithLifecycle()
+    val serverConfig by viewModel.serverConfig.collectAsStateWithLifecycle()
+    val networkPolicy by viewModel.networkPolicy.collectAsStateWithLifecycle()
+
+    // ── Lifecycle Management ────────────────────────────────────────────
+    // Disconnect socket when app goes to background to save battery
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> viewModel.onForeground()
+                Lifecycle.Event.ON_STOP -> viewModel.onBackground()
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     // ── Snackbar collector ──────────────────────────────────────────────
     // Listens for one-shot messages from the ViewModel and shows them
@@ -251,9 +283,11 @@ fun MeTubeApp(
                     defaultFormat = defaultFormat,
                     defaultCodec = defaultCodec,
                     isSubmitting = isSubmitting,
+                    presets = presets,
+                    serverConfig = serverConfig,
                     sharedUrl = sharedUrl,
-                    onSubmit = { url, quality, type, format, codec ->
-                        viewModel.addDownload(url, quality, format, codec, type)
+                    onSubmit = { url, quality, type, format, codec, preset, folder, autoStart, splitByChapters ->
+                        viewModel.addDownload(url, quality, format, codec, type, preset, folder, autoStart, splitByChapters)
                     }
                 )
             }
@@ -264,6 +298,8 @@ fun MeTubeApp(
                     queueItems = queue,
                     isLoading = isLoading,
                     connectionStatus = connectionStatus,
+                    onRemove = { item -> viewModel.deleteDownload(item, "queue") },
+                    onStart = { id -> viewModel.startDownload(id) },
                     onRetry = { viewModel.retry() }
                 )
             }
@@ -273,6 +309,9 @@ fun MeTubeApp(
                 HistoryScreen(
                     historyItems = history, 
                     serverUrl = serverUrl,
+                    networkPolicy = networkPolicy,
+                    isLoading = isLoading,
+                    onRemove = { item -> viewModel.deleteDownload(item, "done") },
                     onRetry = { item ->
                         viewModel.addDownload(
                             url = item.url ?: "",
@@ -281,7 +320,18 @@ fun MeTubeApp(
                             codec = item.codec,
                             downloadType = item.downloadType
                         )
-                    }
+                    },
+                    onRefresh = { viewModel.refresh() }
+                )
+            }
+
+            // Subscriptions screen
+            composable(Routes.SUBSCRIPTIONS) {
+                SubscriptionsScreen(
+                    subscriptions = subscriptions,
+                    isLoading = isLoading,
+                    onCheck = { id -> viewModel.checkSubscriptions(if (id != null) listOf(id) else null) },
+                    onDelete = { id -> viewModel.deleteSubscriptions(listOf(id)) }
                 )
             }
 
@@ -299,7 +349,11 @@ fun MeTubeApp(
                     onSaveType = { viewModel.updateDefaultType(it) },
                     onSaveFormat = { viewModel.updateDefaultFormat(it) },
                     onSaveCodec = { viewModel.updateDefaultCodec(it) },
-                    onToggleDarkMode = { viewModel.setDarkMode(it) }
+                    onToggleDarkMode = { viewModel.setDarkMode(it) },
+                    allowBackground = allowBackground,
+                    onToggleBackground = { viewModel.setAllowBackground(it) },
+                    networkPolicy = networkPolicy,
+                    onSaveNetworkPolicy = { viewModel.updateNetworkPolicy(it) }
                 )
             }
         }

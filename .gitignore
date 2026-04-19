@@ -22,3 +22,23 @@ metube-bot/data/*.json
 # Other
 .vscode/
 .history/
+
+# Desktop Native
+metube-desktop/6.7.2/
+metube-desktop/build/
+bin/
+*.a
+*.lib
+*.o
+*.obj
+*.exe
+*.dll
+!Android App/*.apk
+!MeTube-Upgraded.apk
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.sln
+*.vcxproj
+*.user
